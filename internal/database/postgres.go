@@ -13,10 +13,18 @@ import (
 )
 
 func NewPostgres(cfg *config.Config) *gorm.DB {
-	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
-	)
+	var dsn string
+
+	if cfg.DatabaseURL != "" {
+		dsn = cfg.DatabaseURL
+		log.Println("📦 Using DATABASE_URL from environment")
+	} else {
+		dsn = fmt.Sprintf(
+			"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
+		)
+		log.Println("📦 Using individual DB_* env vars (local mode)")
+	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
@@ -25,7 +33,6 @@ func NewPostgres(cfg *config.Config) *gorm.DB {
 		log.Fatalf("Failed to connect database: %v", err)
 	}
 
-	// Auto migrate
 	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Project{},

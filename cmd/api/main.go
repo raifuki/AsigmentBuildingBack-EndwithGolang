@@ -25,13 +25,18 @@ func main() {
 
 	router := routes.SetupRouter(cfg, db, rdb)
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.AppPort
+	}
+
 	srv := &http.Server{
-		Addr:    ":" + cfg.AppPort,
+		Addr:    ":" + port,
 		Handler: router,
 	}
 
 	go func() {
-		log.Printf("🚀 Server starting on port %s", cfg.AppPort)
+		log.Printf("🚀 Server starting on port %s", port)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server error: %v", err)
 		}

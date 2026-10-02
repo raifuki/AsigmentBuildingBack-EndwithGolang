@@ -13,6 +13,9 @@ type Config struct {
 	AppPort string
 	AppEnv  string
 
+	DatabaseURL string
+	RedisURL    string
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -47,6 +50,9 @@ func Load() *Config {
 	return &Config{
 		AppPort: getEnv("APP_PORT", "8080"),
 		AppEnv:  getEnv("APP_ENV", "development"),
+
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		RedisURL:    getEnv("REDIS_URL", ""),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
