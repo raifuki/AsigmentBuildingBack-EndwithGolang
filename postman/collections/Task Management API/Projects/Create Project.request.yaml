@@ -1,0 +1,26 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/projects'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "My Project",
+      "description": "A sample project"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Created", function() { pm.response.to.have.status(201); });
+      var json = pm.response.json();
+      if(json.data && json.data.id) { pm.collectionVariables.set("projectId", String(json.data.id)); }

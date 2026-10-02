@@ -1,0 +1,9 @@
+$kind: http-request
+method: DELETE
+url: '{{baseUrl}}/api/v1/comments/{{commentId}}'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'

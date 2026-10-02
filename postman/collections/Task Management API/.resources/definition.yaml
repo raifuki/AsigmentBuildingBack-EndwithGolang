@@ -1,0 +1,12 @@
+$kind: collection
+name: Task Management API
+description: API collection for the Go Task Management backend
+variables:
+  - key: token
+    value: ''
+  - key: projectId
+    value: '1'
+  - key: taskId
+    value: '1'
+  - key: commentId
+    value: '1'
