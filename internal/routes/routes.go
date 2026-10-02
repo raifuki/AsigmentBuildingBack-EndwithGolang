@@ -97,6 +97,8 @@ func SetupRouter(cfg *config.Config, db *gorm.DB, rdb *redis.Client) *gin.Engine
 		{
 			comments.POST("/task/:taskId", middlewares.RateLimitByUser(limiter, writeCfg, "write"), cmtH.Create)
 			comments.GET("/task/:taskId", cmtH.List)
+			comments.GET("/:id", cmtH.Get)
+			comments.PUT("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), cmtH.Update)
 			comments.DELETE("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), cmtH.Delete)
 		}
 	}

@@ -48,6 +48,37 @@ func (h *CommentHandler) List(c *gin.Context) {
 	response.Success(c, http.StatusOK, "OK", cm)
 }
 
+func (h *CommentHandler) Get(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	cm, err := h.svc.Get(uint(id))
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, "OK", cm)
+}
+
+func (h *CommentHandler) Update(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	var in services.CommentInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.BadRequest(c, "Invalid body", err.Error())
+		return
+	}
+	if errs := validator.Validate(in); errs != nil {
+		response.BadRequest(c, "Validation failed", errs)
+		return
+	}
+	uid := c.GetUint(middlewares.CtxUserID)
+	role := c.GetString(middlewares.CtxRole)
+	cm, err := h.svc.Update(uint(id), uid, in, role == "admin")
+	if err != nil {
+		response.Forbidden(c, err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, "Updated", cm)
+}
+
 func (h *CommentHandler) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := h.svc.Delete(uint(id)); err != nil {
