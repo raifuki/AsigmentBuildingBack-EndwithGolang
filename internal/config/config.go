@@ -27,6 +27,13 @@ type Config struct {
 
 	JWTSecret       string
 	JWTExpiredHours time.Duration
+
+	RateLimitGlobalCapacity int
+	RateLimitGlobalRefill   float64
+	RateLimitAuthCapacity   int
+	RateLimitAuthRefill     float64
+	RateLimitWriteCapacity  int
+	RateLimitWriteRefill    float64
 }
 
 func Load() *Config {
@@ -55,12 +62,37 @@ func Load() *Config {
 
 		JWTSecret:       getEnv("JWT_SECRET", "default-secret"),
 		JWTExpiredHours: time.Duration(expHours) * time.Hour,
+
+		RateLimitGlobalCapacity: getEnvInt("RATE_LIMIT_GLOBAL_CAPACITY", 60),
+		RateLimitGlobalRefill:   getEnvFloat("RATE_LIMIT_GLOBAL_REFILL", 1.0),
+		RateLimitAuthCapacity:   getEnvInt("RATE_LIMIT_AUTH_CAPACITY", 5),
+		RateLimitAuthRefill:     getEnvFloat("RATE_LIMIT_AUTH_REFILL", 5.0/60.0),
+		RateLimitWriteCapacity:  getEnvInt("RATE_LIMIT_WRITE_CAPACITY", 20),
+		RateLimitWriteRefill:    getEnvFloat("RATE_LIMIT_WRITE_REFILL", 20.0/60.0),
 	}
 }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return fallback
+}
+
+func getEnvFloat(key string, fallback float64) float64 {
+	if v := os.Getenv(key); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
 	}
 	return fallback
 }

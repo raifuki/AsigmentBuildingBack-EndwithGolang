@@ -24,7 +24,22 @@ func SetupRouter(cfg *config.Config, db *gorm.DB, rdb *redis.Client) *gin.Engine
 
 	jwtMgr := jwt.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiredHours)
 	cacheLayer := cache.NewRedisCache(rdb)
-	limiter := ratelimit.NewRedisLimiter(rdb) // 👈 NEW
+	redisLimiter := ratelimit.NewRedisLimiter(rdb)
+	memoryLimiter := ratelimit.NewMemoryLimiter()
+	limiter := ratelimit.NewFallbackLimiter(redisLimiter, memoryLimiter)
+
+	globalCfg := ratelimit.Config{
+		Capacity:   cfg.RateLimitGlobalCapacity,
+		RefillRate: cfg.RateLimitGlobalRefill,
+	}
+	authCfg := ratelimit.Config{
+		Capacity:   cfg.RateLimitAuthCapacity,
+		RefillRate: cfg.RateLimitAuthRefill,
+	}
+	writeCfg := ratelimit.Config{
+		Capacity:   cfg.RateLimitWriteCapacity,
+		RefillRate: cfg.RateLimitWriteRefill,
+	}
 
 	userRepo := repositories.NewUserRepository(db)
 	projRepo := repositories.NewProjectRepository(db)
@@ -47,49 +62,42 @@ func SetupRouter(cfg *config.Config, db *gorm.DB, rdb *redis.Client) *gin.Engine
 
 	api := r.Group("/api/v1")
 
-	// Global rate limit cho TẤT CẢ API
-	api.Use(middlewares.RateLimitByIP(limiter, ratelimit.GlobalLimit, "global"))
+	api.Use(middlewares.RateLimitByIP(limiter, globalCfg, "global"))
 
-	// ===== Auth endpoints: siết chặt hơn (5 req/phút) =====
 	auth := api.Group("/auth")
-	auth.Use(middlewares.RateLimitByIP(limiter, ratelimit.AuthLimit, "auth"))
+	auth.Use(middlewares.RateLimitByIP(limiter, authCfg, "auth"))
 	{
 		auth.POST("/register", authH.Register)
 		auth.POST("/login", authH.Login)
 	}
 
-	// ===== Private endpoints =====
 	protected := api.Group("")
 	protected.Use(middlewares.Auth(jwtMgr))
 	protected.Use(middlewares.RateLimitByUser(limiter, ratelimit.ReadLimit, "user"))
 	{
-		// Projects
 		projects := protected.Group("/projects")
 		{
-			// Write endpoints: siết chặt hơn (20 req/phút)
-			projects.POST("", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), projH.Create)
+			projects.POST("", middlewares.RateLimitByUser(limiter, writeCfg, "write"), projH.Create)
 			projects.GET("", projH.List)
 			projects.GET("/:id", projH.Get)
-			projects.PUT("/:id", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), projH.Update)
-			projects.DELETE("/:id", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), projH.Delete)
+			projects.PUT("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), projH.Update)
+			projects.DELETE("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), projH.Delete)
 		}
 
-		// Tasks
 		tasks := protected.Group("/tasks")
 		{
-			tasks.POST("/project/:projectId", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), taskH.Create)
+			tasks.POST("/project/:projectId", middlewares.RateLimitByUser(limiter, writeCfg, "write"), taskH.Create)
 			tasks.GET("", taskH.List)
 			tasks.GET("/:id", taskH.Get)
-			tasks.PUT("/:id", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), taskH.Update)
-			tasks.DELETE("/:id", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), taskH.Delete)
+			tasks.PUT("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), taskH.Update)
+			tasks.DELETE("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), taskH.Delete)
 		}
 
-		// Comments
 		comments := protected.Group("/comments")
 		{
-			comments.POST("/task/:taskId", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), cmtH.Create)
+			comments.POST("/task/:taskId", middlewares.RateLimitByUser(limiter, writeCfg, "write"), cmtH.Create)
 			comments.GET("/task/:taskId", cmtH.List)
-			comments.DELETE("/:id", middlewares.RateLimitByUser(limiter, ratelimit.WriteLimit, "write"), cmtH.Delete)
+			comments.DELETE("/:id", middlewares.RateLimitByUser(limiter, writeCfg, "write"), cmtH.Delete)
 		}
 	}
 
